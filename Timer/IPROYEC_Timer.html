@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="iproyec-version" content="v9-hora-actual-bajo-timer" />
+<title>IPROYEC - Timer Iglesia v9</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --muted:rgba(255,255,255,.74);
+    --soft:rgba(255,255,255,.11);
+    --soft2:rgba(255,255,255,.20);
+    --border:rgba(255,255,255,.25);
+    --time-size:30vmin;
+    --label-size:10.5vmin;
+    --meta-size:3.5vmin;
+    --small-size:2.4vmin;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    user-select:none;
+  }
+
+  body.excedente{
+    background:#fff;
+    color:#000;
+    --muted:rgba(0,0,0,.72);
+    --soft:rgba(0,0,0,.08);
+    --soft2:rgba(0,0,0,.15);
+    --border:rgba(0,0,0,.22);
+  }
+
+  button,input,select{font:inherit}
+
+  .topbar{
+    position:fixed;
+    top:8px;
+    left:8px;
+    right:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    z-index:50;
+  }
+
+  .btn{
+    border:1px solid var(--border);
+    background:var(--soft);
+    color:inherit;
+    padding:8px 12px;
+    border-radius:11px;
+    font-size:12px;
+    font-weight:850;
+    line-height:1;
+    cursor:pointer;
+    backdrop-filter:blur(6px) saturate(130%);
+  }
+  .btn:hover{background:var(--soft2)}
+  .btn:active{transform:translateY(1px)}
+  .btn.active{
+    background:rgba(255,255,255,.30);
+    outline:1px solid rgba(255,255,255,.42);
+  }
+  body.excedente .btn.active{
+    background:rgba(0,0,0,.18);
+    outline:1px solid rgba(0,0,0,.32);
+  }
+
+  .stage{
+    height:100%;
+    width:100%;
+    display:grid;
+    place-items:center;
+    padding:76px 3vmin 76px;
+    text-align:center;
+  }
+
+  .content{
+    width:min(98vw,1600px);
+    display:grid;
+    place-items:center;
+    gap:1.6vmin;
+  }
+
+  #badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    max-width:94vw;
+    padding:7px 13px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:var(--soft);
+    color:var(--muted);
+    font-size:var(--small-size);
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+
+  #label{
+    max-width:96vw;
+    font-size:var(--label-size);
+    font-weight:950;
+    line-height:.94;
+    letter-spacing:.035em;
+    text-transform:uppercase;
+    overflow-wrap:anywhere;
+  }
+
+  #time{
+    font-size:var(--time-size);
+    font-weight:950;
+    line-height:.86;
+    letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+  }
+
+  #meta{
+    max-width:94vw;
+    font-size:var(--meta-size);
+    font-weight:850;
+    line-height:1.14;
+    color:var(--muted);
+  }
+
+  #submeta{
+    max-width:94vw;
+    font-size:var(--small-size);
+    font-weight:750;
+    line-height:1.18;
+    color:var(--muted);
+  }
+
+  .bottombar{
+    position:fixed;
+    bottom:8px;
+    left:8px;
+    right:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    z-index:45;
+  }
+
+  body.mode-hora .stage{padding:48px 2vmin 2vmin}
+  body.mode-hora .content{gap:1.1vmin}
+  body.mode-hora #badge,
+  body.mode-hora #meta,
+  body.mode-hora #submeta,
+  body.mode-hora .bottombar{display:none!important}
+  body.mode-hora #label{
+    display:block!important;
+    font-size:min(5vmin,4.8vw);
+    line-height:1;
+    font-weight:900;
+    color:var(--muted);
+    letter-spacing:.12em;
+    margin-bottom:1vmin;
+  }
+  body.mode-hora #time{
+    font-size:min(38vmin,36vw);
+    line-height:.84;
+  }
+
+  .panel{
+    position:fixed;
+    top:64px;
+    right:12px;
+    width:min(450px,calc(100vw - 24px));
+    max-height:calc(100vh - 92px);
+    overflow:auto;
+    z-index:70;
+    text-align:left;
+    background:rgba(0,0,0,.78);
+    border:1px solid rgba(255,255,255,.20);
+    border-radius:18px;
+    padding:15px;
+    box-shadow:0 20px 60px rgba(0,0,0,.42);
+    backdrop-filter:blur(11px) saturate(135%);
+  }
+  body.excedente .panel{
+    background:rgba(255,255,255,.88);
+    border-color:rgba(0,0,0,.18);
+  }
+  .hidden{display:none!important}
+
+  .panel h2{
+    margin:0 0 10px;
+    font-size:18px;
+    line-height:1.1;
+  }
+  .panel p{
+    margin:8px 0;
+    font-size:12px;
+    line-height:1.28;
+    color:var(--muted);
+  }
+
+  .row{
+    display:grid;
+    grid-template-columns:135px 1fr;
+    align-items:center;
+    gap:9px;
+    margin-top:9px;
+  }
+  .row label{
+    font-size:12px;
+    font-weight:900;
+    color:var(--muted);
+  }
+  .row input,
+  .row select{
+    width:100%;
+    border:1px solid rgba(255,255,255,.24);
+    background:rgba(255,255,255,.08);
+    color:inherit;
+    border-radius:11px;
+    padding:8px 10px;
+    outline:none;
+    font-weight:850;
+  }
+  .row select option{color:#000}
+  body.excedente .row input,
+  body.excedente .row select{
+    border-color:rgba(0,0,0,.20);
+    background:rgba(0,0,0,.05);
+  }
+
+  .panel-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:13px;
+  }
+
+  .version{
+    position:fixed;
+    left:8px;
+    bottom:8px;
+    color:rgba(255,255,255,.25);
+    font-size:10px;
+    z-index:5;
+  }
+
+
+  .scheduleWidget{
+    position:fixed;
+    left:12px;
+    bottom:58px;
+    z-index:44;
+    width:min(480px, calc(100vw - 24px));
+    text-align:left;
+  }
+
+  .scheduleWidget.hidden{display:none!important}
+
+  .scheduleMiniBtn{
+    box-shadow:0 12px 36px rgba(0,0,0,.35);
+  }
+
+  .scheduleWidget:not(.collapsed) .scheduleMiniBtn{
+    display:none;
+  }
+
+  .scheduleWidget.collapsed .scheduleCard{
+    display:none;
+  }
+
+  .scheduleCard{
+    width:100%;
+    max-height:46vh;
+    overflow:auto;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:rgba(0,0,0,.78);
+    box-shadow:0 18px 55px rgba(0,0,0,.42);
+    backdrop-filter:blur(10px) saturate(130%);
+  }
+
+  body.excedente .scheduleCard{
+    background:rgba(255,255,255,.88);
+    border-color:rgba(0,0,0,.18);
+    box-shadow:0 18px 55px rgba(0,0,0,.18);
+  }
+
+  .scheduleHead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:9px;
+  }
+
+  .scheduleHead strong{
+    font-size:12px;
+    font-weight:950;
+    text-transform:uppercase;
+    letter-spacing:.10em;
+    color:var(--muted);
+  }
+
+  .scheduleSmall{
+    padding:6px 8px;
+    font-size:11px;
+    border-radius:9px;
+  }
+
+  .scheduleTabs{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-bottom:9px;
+  }
+
+  .scheduleTab.active{
+    background:rgba(255,255,255,.28);
+    outline:1px solid rgba(255,255,255,.35);
+  }
+
+  body.excedente .scheduleTab.active{
+    background:rgba(0,0,0,.16);
+    outline:1px solid rgba(0,0,0,.26);
+  }
+
+  .scheduleRows{
+    display:grid;
+    gap:3px;
+  }
+
+  .scheduleRow{
+    display:grid;
+    grid-template-columns:56px 1fr 56px;
+    gap:8px;
+    align-items:center;
+    padding:5px 7px;
+    border-radius:9px;
+    font-size:12px;
+    font-weight:700;
+    color:var(--muted);
+  }
+
+  .scheduleRow.active{
+    background:var(--soft2);
+    color:inherit;
+    font-weight:950;
+  }
+
+  .scheduleRow .activity{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .scheduleRow .end{
+    text-align:right;
+  }
+
+  body.mode-hora .scheduleWidget{
+    display:none!important;
+  }
+
+
+  @media (max-width:720px){
+    :root{
+      --time-size:24vmin;
+      --label-size:8.8vmin;
+      --meta-size:4vmin;
+      --small-size:2.9vmin;
+    }
+    .topbar{justify-content:flex-start; overflow-x:auto; padding-bottom:4px}
+    .btn{font-size:11px; padding:7px 9px; white-space:nowrap}
+    .stage{padding-top:92px}
+    .row{grid-template-columns:120px 1fr}
+  }
+</style>
+</head>
+<body class="mode-hora">
+  <nav class="topbar" aria-label="Menú principal">
+    <button class="btn" id="btnHora" type="button">Hora</button>
+    <button class="btn" id="btnDom930" type="button">Dom 09:30</button>
+    <button class="btn" id="btnDom1130" type="button">Dom 11:30</button>
+    <button class="btn" id="btnJueves" type="button">Jueves</button>
+    <button class="btn" id="btnPredica" type="button">Prédica</button>
+    <button class="btn" id="btnInvitados" type="button">Invitados</button>
+  </nav>
+
+  <main class="stage" aria-live="polite" aria-atomic="true">
+    <section class="content">
+      <div id="badge"></div>
+      <div id="label"></div>
+      <div id="time">--:--</div>
+      <div id="meta"></div>
+      <div id="submeta"></div>
+    </section>
+  </main>
+
+  <div class="bottombar" aria-label="Ajustes rápidos">
+    <button class="btn" id="btnMenos" type="button">-1 min</button>
+    <button class="btn" id="btnMas" type="button">+1 min</button>
+    <button class="btn" id="btnPlanificado" type="button">Planificado</button>
+    <button class="btn" id="btnEditarGlobal" type="button">Editar global</button>
+  </div>
+
+  <section class="panel hidden" id="customPanel" aria-label="Temporizador editable">
+    <h2>Temporizador editable</h2>
+    <p>Escriba solamente el texto que aparecerá en pantalla y el tiempo del contador.</p>
+
+    <div class="row">
+      <label for="customTitle">Texto</label>
+      <input id="customTitle" type="text" value="Invitados" autocomplete="off" />
+    </div>
+
+    <div class="row">
+      <label for="customMinutes">Tiempo</label>
+      <input id="customMinutes" type="number" min="1" step="1" value="15" />
+    </div>
+
+    <div class="panel-actions">
+      <button class="btn" id="btnCustomStart" type="button">Iniciar</button>
+      <button class="btn" id="btnCustomClose" type="button">Cerrar</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="predicaPanel" aria-label="Temporizador de prédica">
+    <h2>Temporizador prédica</h2>
+    <p>Este tiempo queda fuera de la programación. El texto en pantalla siempre será Prédica.</p>
+
+    <div class="row">
+      <label for="predicaMinutes">Tiempo</label>
+      <input id="predicaMinutes" type="number" min="1" step="1" value="45" />
+    </div>
+
+    <div class="panel-actions">
+      <button class="btn" id="btnPredicaStart" type="button">Iniciar</button>
+      <button class="btn" id="btnPredicaClose" type="button">Cerrar</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="settingsPanel" aria-label="Editar tiempos globales">
+    <h2>Editar global</h2>
+    <p>Estos tiempos afectan Domingo 09:30, Domingo 11:30 y Jueves. La prédica queda fuera de la programación y se usa desde su botón propio. La clave queda validada en este mismo HTML, según lo solicitado.</p>
+
+    <div class="row"><label for="setOracion">Oración</label><input id="setOracion" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setApertura">Apertura</label><input id="setApertura" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setVideo">Video musical</label><input id="setVideo" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setCountdown">Countdown</label><input id="setCountdown" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setAlabanza">Alabanza</label><input id="setAlabanza" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setOfrendas">Ofrendas</label><input id="setOfrendas" type="number" min="1" step="1" /></div>
+    <div class="row"><label for="setPredica">Prédica</label><input id="setPredica" type="number" min="1" step="1" /></div>
+
+    <div class="panel-actions">
+      <button class="btn" id="btnSaveSettings" type="button">Guardar</button>
+      <button class="btn" id="btnResetSettings" type="button">Restablecer base</button>
+      <button class="btn" id="btnCloseSettings" type="button">Cerrar</button>
+    </div>
+  </section>
+
+
+  <aside class="scheduleWidget collapsed hidden" id="scheduleWidget" aria-label="Programación planificada">
+    <button class="btn scheduleMiniBtn" id="btnShowSchedule" type="button">Programación</button>
+
+    <div class="scheduleCard" id="scheduleCard">
+      <div class="scheduleHead">
+        <strong id="scheduleCardTitle">Programación</strong>
+        <button class="btn scheduleSmall" id="btnHideSchedule" type="button">Minimizar</button>
+      </div>
+
+      <div class="scheduleTabs" aria-label="Seleccionar programación visible">
+        <button class="btn scheduleSmall scheduleTab" type="button" data-schedule-tab="dom930">Dom 09</button>
+        <button class="btn scheduleSmall scheduleTab" type="button" data-schedule-tab="dom1130">Dom 11</button>
+        <button class="btn scheduleSmall scheduleTab" type="button" data-schedule-tab="jueves">Jueves</button>
+      </div>
+
+      <div class="scheduleRows" id="scheduleRows"></div>
+    </div>
+  </aside>
+
+  <div class="version">Iproyec Copiapó</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // No hay listeners de teclado en este archivo. Todo funciona solo con mouse.
+  const ADMIN_PASSWORD = "AduiovisualTimmer2026";
+  const STORAGE_KEY = "IPROYEC_TIMER_CONFIG_V4_SIN_ATAJOS";
+
+  const DEFAULTS = {
+    oracion: 10,
+    apertura: 5,
+    video: 5,
+    countdown: 5,
+    alabanza: 30,
+    ofrendas: 5,
+    predica: 45,
+    invitados: 15
+  };
+
+  const SCHEDULES = {
+    dom930: {
+      title: "Domingo 09:30 hrs",
+      anchor: "09:05",
+      blocks: [
+        { kind:"oracion", label:"Oración ministerial", meta:"Tiempo para ir a orar, preparar ministros y comenzar puntualmente el culto." },
+        { kind:"apertura", label:"Apertura auditorio", meta:"Apertura de mamparas y control de ingreso al auditorio." },
+        { kind:"video", label:"Video musical", meta:"Proyección de videoclip o material preparado antes del countdown." },
+        { kind:"countdown", label:"Countdown", meta:"Conteo regresivo. Preparar luces, pantalla y transición a alabanzas." },
+        { kind:"alabanza", label:"Alabanzas", meta:"Tiempo de alabanza planificado." },
+        { kind:"ofrendas", label:"Ofrendas", meta:"Sin detener la alabanza. El pastor ministra las ofrendas." }
+      ]
+    },
+    dom1130: {
+      title: "Domingo 11:30 hrs",
+      anchor: "11:25",
+      blocks: [
+        { kind:"apertura", label:"Apertura auditorio", meta:"Apertura de mamparas y control de ingreso al auditorio." },
+        { kind:"video", label:"Video musical", meta:"Proyección de videoclip o material preparado antes del countdown." },
+        { kind:"countdown", label:"Countdown", meta:"Conteo regresivo. Preparar luces, pantalla y transición a alabanzas." },
+        { kind:"alabanza", label:"Alabanzas", meta:"Tiempo de alabanza planificado." },
+        { kind:"ofrendas", label:"Ofrendas", meta:"Sin detener la alabanza. El pastor ministra las ofrendas." }
+      ]
+    },
+    jueves: {
+      title: "Culto Jueves",
+      anchor: "19:55",
+      blocks: [
+        { kind:"video", label:"Video musical", meta:"Inicio planificado jueves 19:55." },
+        { kind:"countdown", label:"Countdown", meta:"Inicio planificado jueves 20:00. Preparar transición a alabanzas." },
+        { kind:"alabanza", label:"Alabanzas", meta:"Tiempo de alabanza planificado." },
+        { kind:"ofrendas", label:"Ofrendas", meta:"Sin detener la alabanza. El pastor ministra las ofrendas." }
+      ]
+    }
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  const el = {
+    badge: $("badge"),
+    label: $("label"),
+    time: $("time"),
+    meta: $("meta"),
+    submeta: $("submeta"),
+    customPanel: $("customPanel"),
+    customTitle: $("customTitle"),
+    customMinutes: $("customMinutes"),
+    predicaPanel: $("predicaPanel"),
+    predicaMinutes: $("predicaMinutes"),
+    settingsPanel: $("settingsPanel"),
+    setOracion: $("setOracion"),
+    setApertura: $("setApertura"),
+    setVideo: $("setVideo"),
+    setCountdown: $("setCountdown"),
+    setAlabanza: $("setAlabanza"),
+    setOfrendas: $("setOfrendas"),
+    setPredica: $("setPredica"),
+    scheduleWidget: $("scheduleWidget"),
+    scheduleCardTitle: $("scheduleCardTitle"),
+    scheduleRows: $("scheduleRows")
+  };
+
+  const buttons = {
+    hora: $("btnHora"),
+    dom930: $("btnDom930"),
+    dom1130: $("btnDom1130"),
+    jueves: $("btnJueves"),
+    predica: $("btnPredica"),
+    invitados: $("btnInvitados")
+  };
+
+  const state = {
+    mode: "hora",
+    scheduleKey: null,
+    override: false,
+    targetTime: 0,
+    label: "",
+    manualMeta: "",
+    schedulePanelKey: "dom930",
+    schedulePanelOpen: false,
+    config: loadConfig()
+  };
+
+  function loadConfig(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return { ...DEFAULTS, ...saved };
+    }catch{
+      return { ...DEFAULTS };
+    }
+  }
+
+  function saveConfig(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.config));
+  }
+
+  function resetConfig(){
+    state.config = { ...DEFAULTS };
+    saveConfig();
+    fillSettings();
+    render();
+  }
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function fmtTime(date){
+    return new Intl.DateTimeFormat("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }).format(date);
+  }
+
+  function fmtCountdown(ms){
+    const sign = ms < 0 ? "-" : "";
+    const total = Math.floor(Math.abs(ms) / 1000);
+    const min = Math.floor(total / 60);
+    const sec = total % 60;
+    return sign + pad2(min) + ":" + pad2(sec);
+  }
+
+  function addMinutes(date, minutes){
+    return new Date(date.getTime() + Number(minutes) * 60000);
+  }
+
+  function todayAt(hhmm){
+    const [h,m] = hhmm.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h,m,0,0);
+    return d;
+  }
+
+  function duration(kind){
+    return Math.max(1, Number(state.config[kind] || DEFAULTS[kind] || 5));
+  }
+
+  function scheduleBlocks(key){
+    const schedule = SCHEDULES[key];
+    let cursor = todayAt(schedule.anchor);
+    return schedule.blocks.map((b, idx) => {
+      const start = new Date(cursor);
+      const minutes = duration(b.kind);
+      const end = addMinutes(start, minutes);
+      cursor = new Date(end);
+      return { ...b, idx, start, end, minutes };
+    });
+  }
+
+  function schedulePosition(key){
+    const now = new Date();
+    const blocks = scheduleBlocks(key);
+    const current = blocks.find(b => now >= b.start && now < b.end);
+    if (current) return { status:"current", blocks, current, next:blocks[current.idx + 1] || null };
+    if (now < blocks[0].start) return { status:"before", blocks, current:null, next:blocks[0] };
+    return { status:"after", blocks, current:null, next:null };
+  }
+
+  function setActive(key){
+    Object.entries(buttons).forEach(([name, button]) => button.classList.toggle("active", name === key));
+  }
+
+  function collapseSchedulePanel(){
+    state.schedulePanelOpen = false;
+    if (el.scheduleWidget) el.scheduleWidget.classList.add("collapsed");
+  }
+
+  function openSchedulePanel(){
+    if (!state.scheduleKey) return;
+    state.schedulePanelOpen = true;
+    if (!state.schedulePanelKey) state.schedulePanelKey = state.scheduleKey;
+    syncScheduleWidget();
+  }
+
+  function setSchedulePanelKey(key){
+    state.schedulePanelKey = key;
+    renderSchedulePanel();
+  }
+
+  function syncScheduleWidget(){
+    if (!el.scheduleWidget) return;
+
+    const shouldShow = state.mode === "schedule" && Boolean(state.scheduleKey);
+    el.scheduleWidget.classList.toggle("hidden", !shouldShow);
+
+    if (!shouldShow){
+      state.schedulePanelOpen = false;
+      el.scheduleWidget.classList.add("collapsed");
+      return;
+    }
+
+    el.scheduleWidget.classList.toggle("collapsed", !state.schedulePanelOpen);
+    renderSchedulePanel();
+  }
+
+  function renderSchedulePanel(){
+    if (!el.scheduleRows) return;
+
+    const key = state.schedulePanelKey || state.scheduleKey || "dom930";
+    const schedule = SCHEDULES[key];
+    if (!schedule) return;
+
+    const pos = schedulePosition(key);
+    el.scheduleCardTitle.textContent = schedule.title;
+
+    document.querySelectorAll("[data-schedule-tab]").forEach(btn => {
+      btn.classList.toggle("active", btn.getAttribute("data-schedule-tab") === key);
+    });
+
+    el.scheduleRows.innerHTML = pos.blocks.map(b => {
+      const isActive = pos.current && pos.current.idx === b.idx;
+      return `<div class="scheduleRow${isActive ? " active" : ""}">
+        <div>${fmtTime(b.start)}</div>
+        <div class="activity">${b.label}</div>
+        <div class="end">${fmtTime(b.end)}</div>
+      </div>`;
+    }).join("");
+  }
+
+
+  function hidePanels(){
+    el.customPanel.classList.add("hidden");
+    el.predicaPanel.classList.add("hidden");
+    el.settingsPanel.classList.add("hidden");
+  }
+
+  function setExcedente(value){
+    document.body.classList.toggle("excedente", Boolean(value));
+  }
+
+  function setHora(){
+    state.mode = "hora";
+    state.scheduleKey = null;
+    state.override = false;
+    state.targetTime = 0;
+    state.label = "";
+    state.manualMeta = "";
+    collapseSchedulePanel();
+    hidePanels();
+    setActive("hora");
+    setExcedente(false);
+    render();
+  }
+
+  function startSchedule(key){
+    state.mode = "schedule";
+    state.scheduleKey = key;
+    state.override = false;
+    state.targetTime = 0;
+    state.label = "";
+    state.manualMeta = "";
+    state.schedulePanelKey = key;
+    collapseSchedulePanel();
+    hidePanels();
+    setActive(key);
+    setExcedente(false);
+    render();
+  }
+
+  function openCustom(){
+    state.mode = "custom";
+    state.scheduleKey = null;
+    state.override = false;
+    state.targetTime = 0;
+    collapseSchedulePanel();
+    hidePanels();
+    el.customPanel.classList.remove("hidden");
+    setActive("invitados");
+    setExcedente(false);
+    renderCustomReturn();
+    render();
+  }
+  function openPredica(){
+    state.mode = "predicaConfig";
+    state.scheduleKey = null;
+    state.override = false;
+    state.targetTime = 0;
+    collapseSchedulePanel();
+    hidePanels();
+    el.predicaMinutes.value = state.config.predica;
+    el.predicaPanel.classList.remove("hidden");
+    setActive("predica");
+    setExcedente(false);
+    render();
+  }
+
+  function startPredica(){
+    const min = Math.max(1, parseInt(el.predicaMinutes.value || state.config.predica || "45", 10));
+    state.config.predica = min;
+    saveConfig();
+    state.mode = "manual";
+    state.scheduleKey = null;
+    collapseSchedulePanel();
+    state.override = true;
+    state.targetTime = Date.now() + min * 60000;
+    state.label = "Prédica";
+    state.manualMeta = "Tiempo de prédica iniciado · Duración: " + min + " min";
+    el.predicaPanel.classList.add("hidden");
+    setActive("predica");
+    render();
+  }
+
+
+  function renderCustomReturn(){
+    // Mantiene cálculo interno para mostrar la hora de término en pantalla,
+    // pero el panel editable solo solicita texto y tiempo.
+    return fmtTime(addMinutes(new Date(), Math.max(1, parseInt(el.customMinutes.value || "15", 10))));
+  }
+
+  function startCustom(){
+    const min = Math.max(1, parseInt(el.customMinutes.value || "15", 10));
+    const title = (el.customTitle.value || "Invitados").trim();
+    state.mode = "manual";
+    state.scheduleKey = null;
+    collapseSchedulePanel();
+    state.override = true;
+    state.targetTime = Date.now() + min * 60000;
+    state.label = title;
+    state.manualMeta = "Regreso estimado: " + fmtTime(new Date(state.targetTime));
+    el.customPanel.classList.add("hidden");
+    setActive("invitados");
+    render();
+  }
+
+  function startBlockFromNow(delta){
+    if (state.mode !== "schedule" || !state.scheduleKey) return;
+    const pos = schedulePosition(state.scheduleKey);
+    const block = pos.current || pos.next;
+    if (!block) return;
+    state.override = true;
+    state.targetTime = Date.now() + (block.minutes + Number(delta || 0)) * 60000;
+    state.label = block.label;
+    state.manualMeta = "Bloque iniciado desde ahora. Use -1 / +1 para ajustar o Planificado para volver al horario.";
+    render();
+  }
+
+  function adjustMinutes(delta){
+    if (state.mode === "hora" || state.mode === "custom") return;
+
+    if (state.mode === "schedule" && !state.override){
+      startBlockFromNow(delta);
+      return;
+    }
+
+    if ((state.mode === "schedule" || state.mode === "manual") && state.targetTime){
+      state.targetTime += Number(delta) * 60000;
+      render();
+    }
+  }
+
+  function backToPlanned(){
+    if (!state.scheduleKey) return;
+    state.mode = "schedule";
+    state.override = false;
+    state.targetTime = 0;
+    state.label = "";
+    state.manualMeta = "";
+    setExcedente(false);
+    render();
+  }
+
+  function askPassword(){
+    const pass = window.prompt("Clave para editar global:");
+    if (pass === null) return;
+    if (pass !== ADMIN_PASSWORD){
+      window.alert("Clave incorrecta.");
+      return;
+    }
+    openSettings();
+  }
+
+  function fillSettings(){
+    el.setOracion.value = state.config.oracion;
+    el.setApertura.value = state.config.apertura;
+    el.setVideo.value = state.config.video;
+    el.setCountdown.value = state.config.countdown;
+    el.setAlabanza.value = state.config.alabanza;
+    el.setOfrendas.value = state.config.ofrendas;
+    el.setPredica.value = state.config.predica;
+  }
+
+  function openSettings(){
+    el.customPanel.classList.add("hidden");
+    el.predicaPanel.classList.add("hidden");
+    fillSettings();
+    el.settingsPanel.classList.remove("hidden");
+  }
+
+  function saveSettings(){
+    state.config.oracion = Math.max(1, parseInt(el.setOracion.value || DEFAULTS.oracion, 10));
+    state.config.apertura = Math.max(1, parseInt(el.setApertura.value || DEFAULTS.apertura, 10));
+    state.config.video = Math.max(1, parseInt(el.setVideo.value || DEFAULTS.video, 10));
+    state.config.countdown = Math.max(1, parseInt(el.setCountdown.value || DEFAULTS.countdown, 10));
+    state.config.alabanza = Math.max(1, parseInt(el.setAlabanza.value || DEFAULTS.alabanza, 10));
+    state.config.ofrendas = Math.max(1, parseInt(el.setOfrendas.value || DEFAULTS.ofrendas, 10));
+    state.config.predica = Math.max(1, parseInt(el.setPredica.value || DEFAULTS.predica, 10));
+    saveConfig();
+    el.settingsPanel.classList.add("hidden");
+    render();
+  }
+
+  function renderHora(){
+    document.body.classList.add("mode-hora");
+    setExcedente(false);
+    el.label.textContent = "Hora actual";
+    el.time.textContent = fmtTime(new Date());
+  }
+
+  function renderSchedule(){
+    document.body.classList.remove("mode-hora");
+    const schedule = SCHEDULES[state.scheduleKey];
+    el.badge.textContent = schedule.title;
+
+    if (state.override && state.targetTime){
+      const diff = state.targetTime - Date.now();
+      el.label.textContent = state.label || "Actividad";
+      el.time.textContent = fmtCountdown(diff);
+      el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+      el.submeta.textContent = "";
+      setExcedente(diff < 0);
+      return;
+    }
+
+    setExcedente(false);
+    const pos = schedulePosition(state.scheduleKey);
+
+    if (pos.status === "before"){
+      const diff = pos.next.start - new Date();
+      el.label.textContent = "Próximo: " + pos.next.label;
+      el.time.textContent = fmtCountdown(diff);
+      el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+      el.submeta.textContent = "";
+      return;
+    }
+
+    if (pos.status === "after"){
+      el.label.textContent = "Programación previa completada";
+      el.time.textContent = "";
+      el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+      el.submeta.textContent = "";
+      return;
+    }
+
+    const b = pos.current;
+    const diff = b.end - new Date();
+    el.label.textContent = b.label;
+    el.time.textContent = fmtCountdown(diff);
+    el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+    el.submeta.textContent = "";
+  }
+
+  function renderManual(){
+    document.body.classList.remove("mode-hora");
+    const diff = state.targetTime - Date.now();
+    el.badge.textContent = state.label === "Prédica" ? "Prédica" : "Temporizador";
+    el.label.textContent = state.label || "Invitados";
+    el.time.textContent = fmtCountdown(diff);
+    el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+    el.submeta.textContent = "";
+    setExcedente(diff < 0);
+  }
+
+  function renderCustomWaiting(){
+    document.body.classList.remove("mode-hora");
+    const min = Math.max(1, parseInt(el.customMinutes.value || "15", 10));
+    el.badge.textContent = "Temporizador";
+    el.label.textContent = (el.customTitle.value || "Invitados").trim();
+    el.time.textContent = pad2(min) + ":00";
+    el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+    el.submeta.textContent = "";
+    setExcedente(false);
+  }
+
+  function renderPredicaWaiting(){
+    document.body.classList.remove("mode-hora");
+    const min = Math.max(1, parseInt(el.predicaMinutes.value || state.config.predica || "45", 10));
+    el.badge.textContent = "Prédica";
+    el.label.textContent = "Prédica";
+    el.time.textContent = pad2(min) + ":00";
+    el.meta.textContent = "Hora actual: " + fmtTime(new Date());
+    el.submeta.textContent = "";
+    setExcedente(false);
+  }
+
+  function render(){
+    syncScheduleWidget();
+    if (state.mode === "hora") return renderHora();
+    if (state.mode === "schedule") return renderSchedule();
+    if (state.mode === "manual") return renderManual();
+    if (state.mode === "custom") return renderCustomWaiting();
+    if (state.mode === "predicaConfig") return renderPredicaWaiting();
+  }
+
+  $("btnHora").addEventListener("click", setHora);
+  $("btnDom930").addEventListener("click", () => startSchedule("dom930"));
+  $("btnDom1130").addEventListener("click", () => startSchedule("dom1130"));
+  $("btnJueves").addEventListener("click", () => startSchedule("jueves"));
+  $("btnPredica").addEventListener("click", openPredica);
+  $("btnInvitados").addEventListener("click", openCustom);
+
+  $("btnMenos").addEventListener("click", () => adjustMinutes(-1));
+  $("btnMas").addEventListener("click", () => adjustMinutes(1));
+  $("btnPlanificado").addEventListener("click", backToPlanned);
+  $("btnEditarGlobal").addEventListener("click", askPassword);
+
+  $("btnCustomStart").addEventListener("click", startCustom);
+  $("btnCustomClose").addEventListener("click", () => el.customPanel.classList.add("hidden"));
+  $("btnPredicaStart").addEventListener("click", startPredica);
+  $("btnPredicaClose").addEventListener("click", () => el.predicaPanel.classList.add("hidden"));
+  $("customMinutes").addEventListener("input", () => { renderCustomReturn(); render(); });
+  $("customTitle").addEventListener("input", render);
+  $("predicaMinutes").addEventListener("input", render);
+
+  $("btnSaveSettings").addEventListener("click", saveSettings);
+  $("btnResetSettings").addEventListener("click", resetConfig);
+  $("btnCloseSettings").addEventListener("click", () => el.settingsPanel.classList.add("hidden"));
+
+
+  $("btnShowSchedule").addEventListener("click", openSchedulePanel);
+  $("btnHideSchedule").addEventListener("click", collapseSchedulePanel);
+
+  document.querySelectorAll("[data-schedule-tab]").forEach(btn => {
+    btn.addEventListener("click", () => setSchedulePanelKey(btn.getAttribute("data-schedule-tab")));
+  });
+
+  setHora();
+  renderCustomReturn();
+  setInterval(() => { renderCustomReturn(); render(); }, 500);
+})();
+</script>
+</body>
+</html>
